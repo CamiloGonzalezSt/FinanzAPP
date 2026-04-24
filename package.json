@@ -1,0 +1,18 @@
+{
+  "name": "finanzas-monorepo",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "mobile-app",
+    "backend-api"
+  ],
+  "scripts": {
+    "dev:mobile": "npm run --workspace mobile-app start",
+    "dev:api": "npm run --workspace backend-api dev",
+    "typecheck:api": "npm run --workspace backend-api typecheck",
+    "db:up": "docker compose -f infra/docker-compose.yml up -d",
+    "db:down": "docker compose -f infra/docker-compose.yml down",
+    "db:init": "npm run --workspace backend-api db:init",
+    "db:seed": "npm run --workspace backend-api db:seed"
+  }
+}

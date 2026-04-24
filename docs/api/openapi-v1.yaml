@@ -1,0 +1,547 @@
+openapi: 3.1.0
+info:
+  title: Finanzas App API
+  version: 1.0.0
+  description: API v1 para app financiera Chile-first (CLP).
+servers:
+  - url: https://api.finanzasapp.cl/v1
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+  - name: Sync
+  - name: Transactions
+  - name: Categories
+  - name: Goals
+  - name: Budgets
+  - name: Reports
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Registro manual
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Usuario registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login manual
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Sesion creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+  /auth/google:
+    post:
+      tags: [Auth]
+      summary: Login Google con token id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [idToken]
+              properties:
+                idToken:
+                  type: string
+      responses:
+        '200':
+          description: Sesion creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refrescar access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Token actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshResponse'
+  /sync/gmail/connect:
+    post:
+      tags: [Sync]
+      summary: Conecta Gmail usando authorization code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [authorizationCode]
+              properties:
+                authorizationCode:
+                  type: string
+      responses:
+        '200':
+          description: Conexion activa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailConnection'
+  /sync/gmail/run:
+    post:
+      tags: [Sync]
+      summary: Ejecuta sincronizacion manual
+      responses:
+        '202':
+          description: Sync encolado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  syncRunId:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [queued]
+  /sync/runs:
+    get:
+      tags: [Sync]
+      summary: Lista historico de sincronizaciones
+      responses:
+        '200':
+          description: Lista de runs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SyncRun'
+  /transactions:
+    get:
+      tags: [Transactions]
+      summary: Lista movimientos con filtros
+      parameters:
+        - in: query
+          name: month
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+        - in: query
+          name: type
+          schema:
+            type: string
+            enum: [income, expense]
+        - in: query
+          name: categoryId
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: source
+          schema:
+            type: string
+            enum: [gmail, manual]
+      responses:
+        '200':
+          description: Transacciones
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transaction'
+    post:
+      tags: [Transactions]
+      summary: Crear movimiento manual
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransactionRequest'
+      responses:
+        '201':
+          description: Creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+  /transactions/{transactionId}:
+    patch:
+      tags: [Transactions]
+      summary: Editar categoria o glosa
+      parameters:
+        - in: path
+          name: transactionId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                categoryId:
+                  type: string
+                  format: uuid
+                rawGlosa:
+                  type: string
+      responses:
+        '200':
+          description: Actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+  /categories:
+    get:
+      tags: [Categories]
+      summary: Listar categorias
+      responses:
+        '200':
+          description: Categorias
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+    post:
+      tags: [Categories]
+      summary: Crear categoria
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                icon:
+                  type: string
+                colorHex:
+                  type: string
+      responses:
+        '201':
+          description: Creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+  /goals:
+    get:
+      tags: [Goals]
+      summary: Listar metas
+      responses:
+        '200':
+          description: Metas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SavingGoal'
+    post:
+      tags: [Goals]
+      summary: Crear meta
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGoalRequest'
+      responses:
+        '201':
+          description: Meta creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavingGoal'
+  /goals/{goalId}/contributions:
+    post:
+      tags: [Goals]
+      summary: Registrar aporte a meta
+      parameters:
+        - in: path
+          name: goalId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amountClp]
+              properties:
+                amountClp:
+                  type: integer
+                  minimum: 1
+                note:
+                  type: string
+      responses:
+        '201':
+          description: Aporte registrado
+  /budgets:
+    get:
+      tags: [Budgets]
+      summary: Listar presupuestos mensuales
+      parameters:
+        - in: query
+          name: month
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+      responses:
+        '200':
+          description: Presupuestos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Budget'
+    put:
+      tags: [Budgets]
+      summary: Upsert de presupuesto por categoria y mes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertBudgetRequest'
+      responses:
+        '200':
+          description: Presupuesto guardado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Budget'
+  /reports/dashboard:
+    get:
+      tags: [Reports]
+      summary: KPIs de inicio
+      parameters:
+        - in: query
+          name: month
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+      responses:
+        '200':
+          description: Resumen mensual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardReport'
+  /reports/monthly-comparison:
+    get:
+      tags: [Reports]
+      summary: Comparativo de meses
+      parameters:
+        - in: query
+          name: fromMonth
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+        - in: query
+          name: toMonth
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+      responses:
+        '200':
+          description: Serie comparativa
+  /reports/export.csv:
+    get:
+      tags: [Reports]
+      summary: Exporta movimientos a CSV
+      parameters:
+        - in: query
+          name: month
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Archivo CSV
+          content:
+            text/csv:
+              schema:
+                type: string
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [email, password, fullName]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+        fullName: { type: string }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+    AuthResponse:
+      type: object
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        user:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            email: { type: string, format: email }
+            fullName: { type: string }
+    RefreshResponse:
+      type: object
+      properties:
+        accessToken: { type: string }
+    EmailConnection:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        emailAddress: { type: string, format: email }
+        isActive: { type: boolean }
+        lastSyncedAt: { type: string, format: date-time }
+    SyncRun:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [running, success, failed] }
+        fetchedEmailsCount: { type: integer }
+        createdTransactionsCount: { type: integer }
+        duplicatesCount: { type: integer }
+        errorsCount: { type: integer }
+        startedAt: { type: string, format: date-time }
+        finishedAt: { type: string, format: date-time }
+    Category:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        icon: { type: string }
+        colorHex: { type: string }
+    Transaction:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string, enum: [income, expense] }
+        source: { type: string, enum: [gmail, manual] }
+        amountClp: { type: integer }
+        occurredAt: { type: string, format: date-time }
+        rawGlosa: { type: string }
+        merchant: { type: string }
+        categoryId: { type: string, format: uuid }
+    CreateTransactionRequest:
+      type: object
+      required: [type, amountClp, occurredAt, rawGlosa]
+      properties:
+        type: { type: string, enum: [income, expense] }
+        amountClp: { type: integer, minimum: 1 }
+        occurredAt: { type: string, format: date-time }
+        rawGlosa: { type: string }
+        categoryId: { type: string, format: uuid }
+    CreateGoalRequest:
+      type: object
+      required: [name, targetAmountClp, monthlyContributionClp]
+      properties:
+        name: { type: string }
+        targetAmountClp: { type: integer, minimum: 1 }
+        monthlyContributionClp: { type: integer, minimum: 1 }
+        targetDate: { type: string, format: date }
+    SavingGoal:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        targetAmountClp: { type: integer }
+        monthlyContributionClp: { type: integer }
+        currentAmountClp: { type: integer }
+        status: { type: string, enum: [active, paused, completed, cancelled] }
+    UpsertBudgetRequest:
+      type: object
+      required: [categoryId, year, month, amountLimitClp]
+      properties:
+        categoryId: { type: string, format: uuid }
+        year: { type: integer, minimum: 2020 }
+        month: { type: integer, minimum: 1, maximum: 12 }
+        amountLimitClp: { type: integer, minimum: 1 }
+    Budget:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        categoryId: { type: string, format: uuid }
+        year: { type: integer }
+        month: { type: integer }
+        amountLimitClp: { type: integer }
+    DashboardReport:
+      type: object
+      properties:
+        month: { type: string }
+        incomeTotalClp: { type: integer }
+        expenseTotalClp: { type: integer }
+        savingTotalClp: { type: integer }
+        overspendPercent: { type: number }
